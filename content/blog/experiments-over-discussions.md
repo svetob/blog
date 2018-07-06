@@ -8,7 +8,7 @@ Remember the last time you had a long, heated discussion and found a perfect sol
 
 Wouldn't it be amazing to have a better way to resolve arguments?
 
-I recall a particularly exhausting discussion that went on for over a month. A few years ago, our team was working on a large scale storage backend. At some point we found a potential issue that could lead to lost updates.
+I recall a particularly exhausting discussion that went on for over a month. Long ago I worked on large scale distributed system. At some point we found a potential issue that could lead to lost updates in our data sets.
 
 We had two solution ideas. One simple bare-minimum fix, the other a major coordination overhaul. In many ways they were direct opposites.
 
@@ -20,18 +20,17 @@ What came of it? Nothing. After a month with no agreement, we jumped onto a new 
 
 What could we have done differently?
 
-![Photo by John Matychuk on Unsplash](/img/john-matychuk-479013-unsplash.jpg)
-
 # Searching for an Experiment
 
 Engineering is about risks and unknowns, learning through trial and error when applying ideas to the real world. After testing and gaining information, you can rethink your approach and make it better. Why miss out on this process by defining everything in advance? Why handicap yourself?
 
 Instead of looking for the perfect solution, search for the most valuable _experiment_. What can you try quickly that will answer your biggest questions? How can you easily find useful information?
 
+![Photo by John Matychuk on Unsplash](/img/john-matychuk-479013-unsplash.jpg)
+
 In our discussion, we had many unknowns. Would the issue be common or rare? How much money would it cost us? If we had said “Let’s find out how common this issue is” or “Let’s find out how if customers would notice the issue” we could have taken action.
 
 We would learn much later that the issue was very rare and had no proven customer impact. In short, it was not worth spending time on. If we had begun by gathering these facts, we could have saved ourselves a month of headache.
-
 
 # Consent over Consensus
 
@@ -45,14 +44,14 @@ If you’re having problems agreeing on an experiment, here are some suggestions
 
 - __Which experiment will take least time?__ Small, effort-less experiments mean little risk. If a test will take less than an hour, just sit down and do it.
 
-- __Who is willing to actually do the work?__ Trust your team mates to make the right call. If Matt suggest a great experiment but only Lisa can actually spend time experimenting, let her choose what to spend time on.
+- __Who is willing to actually do the work?__ Trust your team mates to make the right call. So in practice, if Matt suggest a great experiment but only Lisa can actually spend time experimenting, let her choose what to spend time on.
 
 - __Try both!__ If all else fails and you still can’t agree, just try all your ideas! Remember that the point is to learn and gather facts.
 
 
 # Putting it all together
 
-Fast forward to a few months later. We were facing incidents and performance issues with an unstable key-value store. Maintenance costs were through the roof and attempts to scale it up had failed. Again, there were many paths forward. As discussion arose, I was eager to go anywhere but back to the same state we had been a few months ago.
+Fast forward to a few months later. We were facing repeated incidents and performance issues with an unstable data store. Maintenance costs were through the roof and attempts to scale it up had failed. Again, there were many paths forward. As discussion arose, I was eager to go anywhere but back to the same state we had been a few months ago.
 
 That afternoon, I suggested we try out the approach that was easiest to test. We hacked together a local test, replacing the database with an alternative one. It outperformed our production cluster on my laptop. There and then, discussion died. It didn't matter if this was the best way forward or not. What mattered was we had proof this would solve our problems.
 
