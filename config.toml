@@ -9,7 +9,7 @@ theme               = "cocoa"
 author              = "Tobias Ara Svensson"
 title               = "Tobias Ara Svensson"
 pygmentsuseclasses  = true
-#disqusshortname     = "cocoaexamplesite" # Comment out to disable Disqus.
+disqusshortname     = "svetob" # Comment out to disable Disqus.
 pluralizelisttitles = false
 googleAnalytics     = "UA-121678354-1"
 
