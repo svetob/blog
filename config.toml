@@ -1,4 +1,4 @@
-baseurl             = "https://svetob.github.io/"
+baseurl             = "https://tobiasara.com/"
 builddrafts         = true
 canonifyurls        = true
 contentdir          = "content"
@@ -15,6 +15,7 @@ googleAnalytics     = "UA-121678354-1"
 
 [permalinks]
 blog  = "blog/:slug/"
+#code  = "code/:slug/"
 
 [[menu.main]]
 name                   = "Blog"
@@ -23,8 +24,14 @@ identifier             = "blog"
 url                    = "/blog/"
 
 [[menu.main]]
-name                   = "About"
+name                   = "Code"
 weight                 = -110
+identifier             = "code"
+url                    = "/code/"
+
+[[menu.main]]
+name                   = "About"
+weight                 = -100
 identifier             = "about"
 url                    = "/fixed/about/"
 
@@ -57,7 +64,7 @@ twitter                = "//twitter.com/SveTob"
 #mastodon               = "//example.com/@you"
 
 highlightjs            = true
-# highlightjslanguages = ["go"]                        # additional languages not included in the "common" set
+highlightjslanguages   = ["elixir"]                        # additional languages not included in the "common" set
 # highlightjsStyle     = "darcula"
 
 piwik                  = false                         # If true, Piwik integration is enabled
