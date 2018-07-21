@@ -1,5 +1,5 @@
 ---
-title: "Sending Elixir's logs to Logstash as JSON"
+title: "Sending Elixir logs to Logstash as JSON"
 date: 2018-07-21T17:04:34+02:00
 draft: false
 ---
