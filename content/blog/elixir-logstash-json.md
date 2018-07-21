@@ -8,7 +8,7 @@ Adopting Elixir was a pleasure - it fit nicely into our microservice architectur
 
 In this post, we will cover how to create your own Elixir logger backend, how to send JSON logs to Logstash via TCP, unit testing, and strategies for handling log spikes.
 
-You can find __logstash-json__ on [GitHub](https://github.com/svetob/logstash-json).
+You can find the complete library on [GitHub](https://github.com/svetob/logstash-json).
 
 # Creating an Elixir logging backend
 
@@ -182,8 +182,6 @@ logstash:
 
 `docker/logstash.conf`
 ```
-# docker/logstash.conf
-
 input {
   tcp {
     port => 5044
