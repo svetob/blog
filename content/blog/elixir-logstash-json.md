@@ -10,6 +10,8 @@ In this post, we will cover how to create your own Elixir logger backend, how to
 
 You can find the complete library on [GitHub](https://github.com/svetob/logstash-json).
 
+![Photo by Dimitri Tyan on Unsplash](/img/blog/elixir-logstash-json/unsplash.jpg)
+
 # Creating an Elixir logging backend
 
 Let's start with the basics and, from an empty `mix new` project, create a simple console JSON logger.
