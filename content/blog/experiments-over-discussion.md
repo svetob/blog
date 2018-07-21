@@ -1,5 +1,5 @@
 ---
-title: "Experiments Over Discussions"
+title: "How to avoid exhausting arguments and get things done"
 date: 2018-07-06T15:51:10+02:00
 draft: true
 ---
@@ -20,7 +20,7 @@ What came of it? Nothing. After a month with no agreement, we jumped onto a new 
 
 What could we have done differently?
 
-# Searching for an Experiment
+# Experiments over Discussion
 
 Engineering is about risks and unknowns, learning through trial and error when applying ideas to the real world. After testing and gaining information, you can rethink your approach and make it better. Why miss out on this process by defining everything in advance? Why handicap yourself?
 
@@ -58,5 +58,7 @@ That afternoon, I suggested we try out the approach that was easiest to test. We
 We were still unsure how it would scale. So, we began with what was most likely to fail - large-scale performance testing. After that, we would test fault tolerance, then maintenance tasks like adding nodes, and so on. Our big project became a series of small experiments. A third of the way through the project, we _knew for a fact_ it would work at scale, handling failures gracefully.
 
 By testing in practice, assumptions became facts. As "I think" became "I know", risk vanished and discussion with it.
+
+# Conclusion
 
 The next time you find yourselves at odds, aim for experiments over discussions. Look for consent over consensus. Spend your time learning instead of worrying.

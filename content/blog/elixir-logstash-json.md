@@ -1,7 +1,7 @@
 ---
-title: "Sending Elixir Logs to Logstash using JSON"
-date: 2018-07-10T17:04:34+02:00
-draft: true
+title: "Sending Elixir's logs to Logstash as JSON"
+date: 2018-07-21T17:04:34+02:00
+draft: false
 ---
 
 Adopting Elixir was a pleasure - it fit nicely into our microservice architecture and most of our tech stack. The only missing piece was our [ELK-based logging infrastructure](https://www.elastic.co/elk-stack), where we sent logs to Logstash formatted in JSON, an easily machine-readable format. As there was no library at the time that did this, I decided to write one myself!
@@ -21,7 +21,7 @@ First we need to handle initalization. Our logger should be configurable via `co
 We must also support reconfiguring the logger during runtime by handling the event `{:configure, opts}`.
 
 ```elixir
-# lib/jsonlogger/console.ex
+# lib/jsonlogger_console.ex
 
 defmodule JsonLogger.Console do
   @moduledoc """
@@ -53,20 +53,34 @@ Now we are ready to handle log messages!
 
 Log message events arrive in the format `{level, group_leader, {Logger, message, timestamp, metadata}}`. We should first compare the log level with our configuration to see if the message should be logged. Then we simply build our log message and print it to console. In this example i'm using [Poison](https://github.com/devinus/poison) to serialize the message to a JSON string.
 
-The only noteworthy surprise here is the mindnumbing timestamp formatting. We have to deal with the odd time format we get, which is Really, Elixir? _Really?_
+There is an interesting parameter called `group_leader`. Each BEAM process belongs to a group. Each group has a [group leader](http://erlang.org/doc/man/erlang.html#group_leader-0) which handles all I/O for that group. According to the [Logger documentation](https://hexdocs.pm/logger/Logger.html#content):
+
+> It is recommended that handlers ignore messages where the group leader is in a different node than the one where the handler is installed.
+
+The idea is logs from one node should not be printed to the console of another node. If we are logging to Logstash, we ignore this advice because all our logs are sent to an external system. Now we are printing to console though, so let's pattern match for this case.
+
+The only other noteworthy surprise here is the mind-numbing approach to getting the system timezone. Really, Elixir?
 
 ```elixir
-  def handle_event({level, group_leader, {Logger, msg, ts, md}},
-                   %{level: min_level} = state) do
-    if Logger.compare_levels(level, min_level) != :lt do
+  def handle_event({_level, group_leader, _info}, state)
+      when node(group_leader) != node() do
+    {:ok, state}
+  end
+
+  def handle_event({level, group_leader, {Logger, msg, ts, md}}, state) do
+    if Logger.compare_levels(level, state.level) != :lt do
       log(event(level, msg, ts, md), state)
     end
     {:ok, state}
   end
 
+  def handle_info(_msg, state) do
+    {:ok, state}
+  end
+
   def event(level, message, timestamp, metadata) do
     %{
-      "@timestamp": format_date(timestamp) <> timezone(), // TODO
+      "@timestamp": format_date(timestamp) <> timezone(),
       level: level,
       message: to_string(message),
       module: metadata[:module],
@@ -75,7 +89,7 @@ The only noteworthy surprise here is the mindnumbing timestamp formatting. We ha
     }
   end
 
-  defp log(event, _state)
+  defp log(event, _state) do
     case Poison.encode(event) do
       {:ok, msg} ->
         IO.puts msg
@@ -117,34 +131,6 @@ The only noteworthy surprise here is the mindnumbing timestamp formatting. We ha
 
   defp sign(total) when total < 0, do: "-"
   defp sign(_),                    do: "+"
-```
-
-There is another interesting parameter called `group_leader`. Each BEAM process belongs to a group. Each group has a [group leader](http://erlang.org/doc/man/erlang.html#group_leader-0) which handles all I/O for that group. The reason we get the group leader as a parameter is according to the [documentation](https://hexdocs.pm/logger/Logger.html#content):
-
-> It is recommended that handlers ignore messages where the group leader is in a different node than the one where the handler is installed.
-
-The idea here is that logs from one node should not be printed to the console of another node. If we are logging to Logstash, we ignore this advice because all our logs are sent to the same logging backend. But for now, let's update our event handler by adding another comparison to our if case:
-
-```elixir
-  if node(group_leader) == node() and
-      Logger.compare_levels(level, min_level) != :lt do
-      // TODO Add to repo
-```
-
-Finally let's handle the last `:gen_event` behaviours:
-
-```elixir
-  def handle_info(_msg, state) do
-    {:ok, state}
-  end
-
-  def terminate(_reason, _state) do
-    :ok
-  end
-
-  def code_change(_reason, state, _extra) do
-    {:ok, state}
-  end
 end
 ```
 
@@ -157,16 +143,16 @@ use Mix.Config
 
 config :logger,
   backends: [
-    {LogstashJson.Console, :json}
+    {JsonLogger.Console, :console}
   ]
 
-config :logger, :json,
+config :logger, :console,
   level: :info
 ```
 
 ... and then quickly test it with `iex -S mix`:
 
-IMAGE
+![Console output](/img/blog/elixir-logstash-json/console_loggerbackend.png)
 
 Nice! Not the most human readable format though.
 
@@ -180,7 +166,7 @@ Now, instead of printing to console, we want to sent these logs to Logstash.
 
 First things first!
 
-To make this easy, here is a docker compose setup which starts the ELK-stack locally with Logstash set up to read JSON input over TCP.
+To make this easy, here is a docker compose setup which starts Logstash locally, set up to read JSON input over TCP.
 
 `docker-compose.yml`
 ```
@@ -215,15 +201,13 @@ Create these two files and run `docker-compose up`. Now you have a running Logst
 
 ## Connection
 
-Now we can begin building our TCP connection. Logstash's TCP interface is very simple, all we need to do is open a TCP socket and start sending JSON messages. But, we also need to nicely handle connection failures, service being unavailable and other expected errors. This should be a common problem, so perhaps there is already a solution available?
+Now we can begin building our TCP connection. Logstash's TCP interface is very simple, all we need to do is open a TCP socket and send newline-delimited JSON messages. But, we also need to nicely handle connection failures, service being unavailable and other expected errors. This should be a common problem, so perhaps there is already a solution available?
 
 Yup - [Connection](https://github.com/fishcakez/connection)! This library is a behaviour for connection processes. It will handle connection, disconnection, attempt reconnection on errors and has an optional backoff between attempts. It even comes with a [TCP connection example](https://github.com/fishcakez/connection/blob/master/examples/tcp_connection/lib/tcp_connection.ex) right out of the box. Just what we need! We will base our work on this example.
 
 You can test the example as is and see your logs arrive in logstash:
 
-```elixir
-TODO
-```
+![TCPConnection to Logstash](/img/blog/elixir-logstash-json/console_tcpconnection.png)
 
 Let's modify our code to use this. Let's copy `lib/jsonlogger_console.ex` and create a new module, `JsonLogger.TCP` in `lib/jsonlogger_tcp.ex`. The first step is to launch a TCP connection to our logstash host, with configurable host/port.
 
@@ -249,19 +233,19 @@ defmodule JsonLogger.TCP do
       :ok = TCPConnection.close(connection)
     end
 
-    connection = TCPConnection.start_link(host, port, [active: false, mode: :binary])
+    {:ok, connection} = TCPConnection.start_link(host, port, [active: false, mode: :binary])
 
     %{level: level, name: name, connection: connection}
   end
 ```
 
 
-Then we edit `log/2` to send the message to our TCP connection genserver.
+Then we edit `log/2` to send the message to our TCP connection genserver:
 
 ```elixir
 # lib/jsonlogger_tcp.ex
 
-  defp log(event, state)
+  defp log(event, state) do
     case Poison.encode(event) do
       {:ok, msg} ->
         TCPConnection.send(state.connection, msg <> "\n")
@@ -272,13 +256,37 @@ Then we edit `log/2` to send the message to our TCP connection genserver.
   end
 ```
 
-Now, you should be able to send logs and see them in Kibana's output.
+...and update our `config.exs`:
+
+```elixir
+# config/config.exs
+
+use Mix.Config
+
+config :logger,
+  backends: [
+    {JsonLogger.Console, :json},
+    {JsonLogger.TCP, :logstash}
+  ]
+
+config :logger, :json,
+  level: :info
+
+config :logger, :logstash,
+  level: :debug,
+  host: 'localhost',
+  port: 5044
+```
+
+Note for `host: 'localhost'` that we use single quotes (_iolist_), not double quotes (_binary_) because this is what `:gen_tcp` expects.
+
+Now, you should be able to send logs and see them in Logstash's output.
 
 ## Pooling and buffering
 
 So far this works well, but it won't handle high throughput in a good way. There is only one connection, which limits log delivery speed. There is also no buffer on log messages, so any sudden increase in log volume will immediately throttle the application.
 
-This also brings us to the topic of handling __large log volumes__. If we produce logs faster than our backend can handle them, or if Logstash becomes temporarily unavailable, we will be faced with more logs than we can send or keep in memory.
+This also brings us to the topic of handling large log volumes. If we produce logs faster than our backend can handle them, or if Logstash becomes temporarily unavailable, we will be faced with more logs than we can send or keep in memory.
 
 There is no middle ground here - if Logstash becomes unavailable or we produce too much logs too fast, we will have to either __drop logs__ or risk __blocking the application__ until we can successfully send more logs. Dropping logs when your message buffer fills up is normal. For our use case, it was important not to lose any logs, so we implemented blocking behaviour.
 
@@ -303,7 +311,7 @@ defmodule TCPConnection.Worker do
 
   defp consume_messages(conn, queue) do
     msg = BlockingQueue.pop(queue)
-    TCPConnection.send(conn, msg, 60_000)
+    TCPConnection.send(conn, msg)
     consume_messages(conn, queue)
   end
 end
@@ -328,11 +336,9 @@ defmodule TCPConnection do
     state = %{host: host, port: port, opts: opts, timeout: timeout, sock: nil}
     {:connect, :init, state}
   end
-
-end
 ```
 
-If you would rather drop logs than block your application, you can simply change the BlockingQueue to a Queue implementation which drops new messages when it hits max size.
+If you would rather drop logs than block your application, you can change the BlockingQueue to any queue implementation which drops new messages when it hits max size.
 
 With these changes ready, we move back to `JsonLogger.TCP` to create a queue and a connection pool when the logger backend is started:
 
@@ -352,12 +358,11 @@ With these changes ready, we move back to `JsonLogger.TCP` to create a queue and
     port = Keyword.get(opts, :port)
     queue = Keyword.get(opts, :queue) || nil
     buffer_size = Keyword.get(opts, :buffer_size) || 10_000
-    workers = Keyword.get(opts, :workers) || 2
+    workers = Keyword.get(opts, :workers) || 4
     worker_pool = Keyword.get(opts, :worker_pool) || nil
-    connection = Keyword.get(opts, :connection)
 
     # Create new queue
-    if queue != nil do
+    if queue == nil do
       {:ok, queue} = BlockingQueue.start_link(buffer_size)
     end
 
@@ -379,21 +384,28 @@ With these changes ready, we move back to `JsonLogger.TCP` to create a queue and
   end
 
   defp tcp_worker(id, host, port, queue) do
-    Supervisor.Spec.worker(TCP.Connection,
+    Supervisor.Spec.worker(TCPConnection,
       [host, port, queue, @connection_opts], id: id)
   end
 ```
 
 Now, if you start your application and open the BEAM observer, you should see your queue and connections up and running in the process tree.
 
-TODO IMAGE
+```
+$ iex -S mix
+
+iex(1)> :observer.start()
+:ok
+```
+
+![Application tree](/img/blog/elixir-logstash-json/observer_tcpworkers.png)
 
 Finally, we again edit `log/2`, this time to push logs to our queue:
 
 ```elixir
 # lib/jsonlogger_tcp.ex
 
-  defp log(event, state)
+  defp log(event, state) do
     case Poison.encode(event) do
       {:ok, msg} ->
         BlockingQueue.push(state.queue, msg <> "\n")
@@ -404,10 +416,11 @@ Finally, we again edit `log/2`, this time to push logs to our queue:
   end
 ```
 
-And we are done!
+
+And we are done! Now you will see your JSON logs both on your console and appearing in Logstash's output.
 
 # Conclusion
 
-We saw how to implement an Elixir Logger backend. We used [Connection](https://github.com/fishcakez/connection) and its TCP connection example to send logs to Logstash as JSON via TCP. Finally we made our library faster and more resilient by creating a pool of TCP connection workers reading messages from a [BlockingQueue](https://github.com/joekain/BlockingQueue) message buffer.
+We saw how to implement an Elixir Logger backend. We used [Connection](https://github.com/fishcakez/connection) and its TCP connection example to send logs to Logstash as JSON via TCP. Finally we made our library faster and more resilient by creating a pool of TCP connection workers, reading messages from a [BlockingQueue](https://github.com/joekain/BlockingQueue) message buffer.
 
 Thanks for reading!
