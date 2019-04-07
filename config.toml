@@ -1,5 +1,5 @@
 baseurl             = "http://tobiasara.com/"
-builddrafts         = true
+builddrafts         = false
 canonifyurls        = true
 contentdir          = "content"
 languageCode        = "en-US"

@@ -1,7 +1,7 @@
 ---
 title: "How to avoid exhausting arguments and get things done"
 date: 2018-07-06T15:51:10+02:00
-draft: true
+draft: false
 ---
 
 Remember the last time you had a long, heated discussion and found a perfect solution? Me neither.
